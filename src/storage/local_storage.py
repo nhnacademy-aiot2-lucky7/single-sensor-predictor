@@ -13,3 +13,12 @@ class LocalStorage:
         filepath = os.path.join(save_path, filename)
         with open(filepath, "wb") as f:
             pickle.dump(model, f)
+
+    def load_model(self, sensor_id, base_date) -> Pipeline:
+        load_path = os.path.join(self.base_dir, base_date.strftime("%Y-%m-%d"))
+        filename = f"model_{sensor_id}_{base_date.strftime('%Y%m%d')}.pkl"
+        filepath = os.path.join(load_path, filename)
+        if os.path.exists(filepath):
+            with open(filepath, "rb") as f:
+                return pickle.load(f)
+        return None
