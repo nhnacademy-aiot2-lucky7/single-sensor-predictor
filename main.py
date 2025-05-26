@@ -36,10 +36,19 @@ def run_prediction_service():
 
     logging.info("🔮 [3/3] 센서 예측 시작...")
     for sensor in sensor_meta:
-        data = influx.load_sensor_data(sensor["sensor_id"], sensor["gateway_id"], sensor["sensor_type"], DURATION)
-        result = predictor.run_forecast(sensor["gateway_id"], sensor["sensor_id"], sensor["sensor_type"], data, "completed")
+        # (1) 데이터 로드
+        raw_data = influx.load_sensor_data(sensor["sensor_id"], sensor["gateway_id"], sensor["sensor_type"], DURATION)
 
-        if result:
+        # (2) 예측 실행
+        result = predictor.run_forecast(
+            sensor["gateway_id"],
+            sensor["sensor_id"],
+            sensor["sensor_type"],
+            raw_data  # <- 이미 {"day": int, "hour": int} 포함된 형태여야 함
+        )
+
+
+    if result:
             # 1. 결과 출력 (필요시)
             logging.info(f"예측 완료: {result}")
 

@@ -6,18 +6,18 @@ import logging
 from main import run_job
 
 def run_scheduler():
-    schedule.every(5).days.do(run_job())  # 5일마다 job 실행
+    logging.info("스케줄러 시작: 5일마다 예측 작업 실행 예약")
+
+    schedule.every(5).days.do(run_job)
 
     while True:
-        schedule.run_pending()
-        time.sleep(1)
+        try:
+            schedule.run_pending()
+            time.sleep(1)
+        except Exception as e:
+            logging.error(f"스케줄러 실행 중 에러 발생: {e}", exc_info=True)
 
 def start_scheduler_in_thread():
     thread = threading.Thread(target=run_scheduler, daemon=True)
     thread.start()
-
-if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO)
-    start_scheduler_in_thread()
-    while True:
-        time.sleep(60)
+    logging.info("스케줄러 쓰레드 시작됨")
