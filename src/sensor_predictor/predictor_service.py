@@ -50,14 +50,14 @@ class PredictorService:
             y_pred = model.predict_one(x)
             predicted_values.append({
                 "predictedValue": round(y_pred, 2),
-                "predictedDate": current_time.strftime("%Y-%m-%dT%H:%M:%S")
+                "predictedDate": int(current_time.timestamp())
             })
 
-        analyzed_at = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        analyzed_at = int(datetime.now().timestamp())
 
         return {
-            "analysisType": "SINGLE_SENSOR_PREDICT",
             "result": {
+                "analysisType": "SINGLE_SENSOR_PREDICT",
                 "sensorInfo": {
                     "gatewayId": gateway_id,
                     "sensorId": sensor_id,

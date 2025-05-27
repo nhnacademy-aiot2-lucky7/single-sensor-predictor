@@ -16,7 +16,7 @@ INFLUXDB_URL = os.getenv("INFLUXDB_URL")
 INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
 INFLUXDB_ORG = os.getenv("INFLUXDB_ORG")
 INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET")
-DURATION = os.getenv("DURATION", "-5d")
+DURATION = os.getenv("DURATION", "-7d")
 PREDICT_DAYS = int(os.getenv("PREDICT_DAYS", 5))
 
 # 서비스 초기화
