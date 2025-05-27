@@ -1,20 +1,22 @@
 from river.compose import Pipeline
-from typing import List, Tuple, Dict, Any, Optional
-from datetime import datetime, timedelta
 from river.linear_model import LinearRegression
 from river.preprocessing import StandardScaler
+from typing import List, Tuple, Dict, Any, Optional
+from datetime import datetime, timedelta
 
 
 class PredictorService:
     def __init__(self):
-        self.models: Dict[Tuple[str, str], Pipeline] = {}
+        # 모델을 gateway_id까지 포함하여 고유하게 저장
+        self.models: Dict[Tuple[str, str, str], Pipeline] = {}
 
     def run_forecast(
             self,
             gateway_id: str,
             sensor_id: str,
             sensor_type: str,
-            train_data: List[Tuple[Dict[str, float], float]]
+            train_data: List[Tuple[Dict[str, float], float]],
+            predict_days: int = 5 # default
     ) -> Optional[Dict[str, Any]]:
         if not train_data:
             return None
@@ -25,7 +27,9 @@ class PredictorService:
         for x, y in train_data:
             model.learn_one(x, y)
 
-        self.models[(sensor_id, sensor_type)] = model
+        # gateway_id 포함하여 고유하게 모델 저장
+        model_key = (gateway_id, sensor_id, sensor_type)
+        self.models[model_key] = model
 
         # 마지막 학습 시각 기준으로 다음 5일(120시간) 예측
         last_record_time = max(
@@ -34,8 +38,10 @@ class PredictorService:
         )
         prediction_start = last_record_time + timedelta(hours=1)
 
+        total_hours = predict_days * 24
         predicted_values = []
-        for i in range(5 * 24):  # 5일 * 24시간 = 120개
+
+        for i in range(total_hours):  # 5일 * 24시간 = 120개
             current_time = prediction_start + timedelta(hours=i)
             x = {
                 "day": current_time.timetuple().tm_yday,
@@ -63,5 +69,10 @@ class PredictorService:
             }
         }
 
-    def get_trained_model(self, sensor_id: str, sensor_type: str) -> Optional[Pipeline]:
-        return self.models.get((sensor_id, sensor_type))
+    def get_trained_model(
+            self,
+            gateway_id: str,
+            sensor_id: str,
+            sensor_type: str
+    ) -> Optional[Pipeline]:
+        return self.models.get((gateway_id, sensor_id, sensor_type))
