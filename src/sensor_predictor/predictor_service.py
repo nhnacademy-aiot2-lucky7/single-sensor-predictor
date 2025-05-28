@@ -1,78 +1,77 @@
-from river.compose import Pipeline
-from river.linear_model import LinearRegression
-from river.preprocessing import StandardScaler
-from typing import List, Tuple, Dict, Any, Optional
 from datetime import datetime, timedelta
-
+from river import linear_model, preprocessing
 
 class PredictorService:
     def __init__(self):
-        # 모델을 gateway_id까지 포함하여 고유하게 저장
-        self.models: Dict[Tuple[str, str, str], Pipeline] = {}
+        # 모델 파이프라인 초기화 (StandardScaler + LinearRegression)
+        self.model = preprocessing.StandardScaler() | linear_model.LinearRegression()
 
-    def run_forecast(
-            self,
-            gateway_id: str,
-            sensor_id: str,
-            sensor_type: str,
-            train_data: List[Tuple[Dict[str, float], float]],
-            predict_days: int = 5 # default
-    ) -> Optional[Dict[str, Any]]:
-        if not train_data:
-            return None
+    def train(self, raw_train_data):
+        """
+        raw_train_data: list of dict
+          각 원소는 {"features": dict, "target": float} 형태
+        """
+        for data_point in raw_train_data:
+            features = data_point["features"]
+            target = data_point["target"]
+            self.model.learn_one(features, target)
+        return self.model
 
-        model = Pipeline(StandardScaler(), LinearRegression())
+    def predict(self, model, start_time: datetime, end_time: datetime, interval_hours=1):
+        """
+        start_time부터 end_time까지 interval_hours 단위로 예측 수행
+        """
+        current_time = start_time
+        predictions = []
+        while current_time < end_time:
+            features = self.make_features(current_time)
+            predicted_value = model.predict_one(features)
+            predictions.append({"timestamp": current_time, "value": predicted_value})
+            current_time += timedelta(hours=interval_hours)
+        return predictions
 
-        # 학습
-        for x, y in train_data:
-            model.learn_one(x, y)
-
-        # gateway_id 포함하여 고유하게 모델 저장
-        model_key = (gateway_id, sensor_id, sensor_type)
-        self.models[model_key] = model
-
-        # 마지막 학습 시각 기준으로 다음 5일(120시간) 예측
-        last_record_time = max(
-            datetime.strptime(f"{int(x['day'])} {int(x['hour'])}", "%Y %H")
-            for x, _ in train_data
-        )
-        prediction_start = last_record_time + timedelta(hours=1)
-
-        total_hours = predict_days * 24
-        predicted_values = []
-
-        for i in range(total_hours):  # 5일 * 24시간 = 120개
-            current_time = prediction_start + timedelta(hours=i)
-            x = {
-                "day": current_time.timetuple().tm_yday,
-                "hour": current_time.hour
-            }
-            y_pred = model.predict_one(x)
-            predicted_values.append({
-                "predictedValue": round(y_pred, 2),
-                "predictedDate": int(current_time.timestamp())
-            })
-
-        analyzed_at = int(datetime.now().timestamp())
-
+    def make_features(self, dt: datetime):
+        """
+        예측 시 필요한 feature 생성
+        """
         return {
-            "result": {
-                "analysisType": "SINGLE_SENSOR_PREDICT",
-                "sensorInfo": {
-                    "gatewayId": gateway_id,
-                    "sensorId": sensor_id,
-                    "sensorType": sensor_type
-                },
-                "model": "river",
-                "predictedData": predicted_values,
-                "analyzedAt": analyzed_at
-            }
+            "hour": dt.hour,
+            "weekday": dt.weekday()
         }
 
-    def get_trained_model(
-            self,
-            gateway_id: str,
-            sensor_id: str,
-            sensor_type: str
-    ) -> Optional[Pipeline]:
-        return self.models.get((gateway_id, sensor_id, sensor_type))
+    def run_forecast(self, gateway_id, sensor_id, sensor_type, raw_train_data, predict_days: int):
+        """
+        전체 학습과 예측 수행
+        - raw_train_data: 학습 데이터 리스트 [{"features":..., "target":...}, ...]
+        - predict_days: 예측할 일 수 (예: 1이면 24시간 예측)
+
+        동작:
+        1. 학습 데이터로 모델 학습
+        2. 학습 완료 시점을 현재 시각으로 잡고,
+        3. 학습 완료 시점 다음 시간부터 predict_days * 24시간 만큼 1시간 단위 예측 수행
+        4. 예측 결과 리스트 반환
+        """
+
+        # 1) 모델 학습
+        model = self.train(raw_train_data)
+
+        # 2) 학습 완료 시점
+        train_complete_time = datetime.now()
+
+        # 3) 예측 시작 시점 (학습 완료 시점 바로 다음 시간부터)
+        predict_start_time = train_complete_time + timedelta(hours=1)
+
+        # 4) 예측 종료 시점
+        predict_end_time = predict_start_time + timedelta(days=predict_days)
+
+        # 5) 예측 실행
+        predictions = self.predict(model, predict_start_time, predict_end_time, interval_hours=1)
+
+        # 6) 예측 결과 리턴
+        return {
+            "gateway_id": gateway_id,
+            "sensor_id": sensor_id,
+            "sensor_type": sensor_type,
+            "trained_at": train_complete_time.isoformat(),
+            "predictions": predictions
+        }
