@@ -1,33 +1,44 @@
 import os
 import pickle
-from typing import Optional
+import json
 from datetime import datetime
-from river.compose import Pipeline
 
 class LocalStorage:
-    def __init__(self, base_dir="./models"):
+    def __init__(self, base_dir="saved_models"):
         self.base_dir = base_dir
         os.makedirs(self.base_dir, exist_ok=True)
 
-    def save_model(self, model: Pipeline, sensor_id: str, sensor_type: str, base_date: datetime) -> None:
-        save_path = os.path.join(self.base_dir, base_date.strftime("%Y-%m-%d"))
-        os.makedirs(save_path, exist_ok=True)
-        filename = f"model_{sensor_id}_{sensor_type}_{base_date.strftime('%Y%m%d')}.pkl"
-        filepath = os.path.join(save_path, filename)
-        try:
-            with open(filepath, "wb") as f:
-                pickle.dump(model, f)
-        except Exception as e:
-            raise RuntimeError(f"모델 저장 실패: {e}")
+    def _model_path(self, sensor_id, sensor_type):
+        return os.path.join(self.base_dir, f"{sensor_id}_{sensor_type}_model.pkl")
 
-    def load_model(self, sensor_id: str, sensor_type: str, base_date: datetime) -> Optional[Pipeline]:
-        load_path = os.path.join(self.base_dir, base_date.strftime("%Y-%m-%d"))
-        filename = f"model_{sensor_id}_{sensor_type}_{base_date.strftime('%Y%m%d')}.pkl"
-        filepath = os.path.join(load_path, filename)
-        if os.path.exists(filepath):
-            try:
-                with open(filepath, "rb") as f:
-                    return pickle.load(f)
-            except Exception as e:
-                raise RuntimeError(f"모델 로드 실패: {e}")
-        return None
+    def _metadata_path(self, sensor_id, sensor_type):
+        return os.path.join(self.base_dir, f"{sensor_id}_{sensor_type}_meta.json")
+
+    def save_model(self, model, sensor_id, sensor_type, trained_time: datetime):
+        # 모델 저장
+        model_path = self._model_path(sensor_id, sensor_type)
+        with open(model_path, "wb") as f:
+            pickle.dump(model, f)
+
+        # 학습 시각 메타데이터 저장
+        meta_path = self._metadata_path(sensor_id, sensor_type)
+        with open(meta_path, "w") as f:
+            json.dump({"last_trained_time": trained_time.isoformat()}, f)
+
+    def load_model_with_metadata(self, sensor_id, sensor_type):
+        model = None
+        last_trained_time = None
+
+        model_path = self._model_path(sensor_id, sensor_type)
+        meta_path = self._metadata_path(sensor_id, sensor_type)
+
+        if os.path.exists(model_path):
+            with open(model_path, "rb") as f:
+                model = pickle.load(f)
+
+        if os.path.exists(meta_path):
+            with open(meta_path, "r") as f:
+                meta = json.load(f)
+                last_trained_time = datetime.fromisoformat(meta["last_trained_time"])
+
+        return model, last_trained_time

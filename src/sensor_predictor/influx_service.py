@@ -107,7 +107,10 @@ class InfluxService:
                         x = {"ds": timestamp}
                         y = record["y"]
 
-                        data.append((x,y))
+                        data.append({
+                            "features": x,
+                            "target": y
+                        })
                     except Exception as e:
                         logger.warning(f"⚠️ 레코드 파싱 실패: {record.values} - {e}")
             return data
