@@ -1,0 +1,37 @@
+# Python 캐시
+__pycache__/
+*.py[cod]
+*.pyo
+
+# 가상환경
+venv/
+.venv/
+
+# 환경 파일
+.env
+config.yaml
+secrets.json
+
+# IDE
+.vscode/
+.idea/
+
+# 시스템 파일
+.DS_Store
+Thumbs.db
+
+# 로그 및 임시 파일
+*.log
+logs/
+*.tmp
+
+# 분석 결과, 캐시
+data/
+results/
+.cache/
+*.sqlite
+*.db
+*.pkl
+
+# 노트북(썼다면)
+.ipynb_checkpoints/

@@ -1,0 +1,23 @@
+# InfluxDB 클라이언트
+influxdb-client
+
+# 수치 연산 및 통계 계산
+numpy
+
+# 데이터 전처리 및 시계열 처리
+pandas
+
+# 시계열 예측 (임계치 계산용)
+river
+
+# 외부 HTTP API 요청용 (결과 저장, webhook 전송)
+requests
+
+# 주기 실행 스케줄러 (1시간마다 실행)
+schedule
+
+# .env에서 설정 가져오기
+dotenv
+
+# 날짜 생성
+datetime
