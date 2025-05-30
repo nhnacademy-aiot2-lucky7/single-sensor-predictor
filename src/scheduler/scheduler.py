@@ -7,7 +7,7 @@ from src.sensor_predictor.predictor_service import PredictorService
 from src.sensor_predictor.sensor_api import load_sensor_list
 from src.storage.local_storage import LocalStorage
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class Scheduler:
     def __init__(self, influx: InfluxService, predictor: PredictorService, storage: LocalStorage):

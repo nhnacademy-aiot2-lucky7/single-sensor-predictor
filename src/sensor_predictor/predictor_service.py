@@ -6,6 +6,8 @@ import requests
 from river import linear_model, preprocessing, metrics
 from src.storage.local_storage import LocalStorage
 
+logger = logging.getLogger(__name__)
+
 class PredictorService:
     def __init__(self):
         self.models = {}
