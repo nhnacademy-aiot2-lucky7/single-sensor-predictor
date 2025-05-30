@@ -1,7 +1,9 @@
+import os
+
 import requests
 import logging
 
-BASE_URL = "http://localhost:10238"
+BASE_URL = os.getenv("SENSOR_URL")
 VALID_STATES = "PENDING"
 
 logger = logging.getLogger(__name__)

@@ -1,5 +1,7 @@
 import logging
 from datetime import datetime
+import json
+
 from src.sensor_predictor.influx_service import InfluxService
 from src.sensor_predictor.predictor_service import PredictorService
 from src.sensor_predictor.sensor_api import load_sensor_list
@@ -50,11 +52,13 @@ class Scheduler:
 
             logging.info(f"🔮 [예측 시작] sensor-id={sensor_id}, 기간={predict_range_days}일")
             forecast = self.predictor.predict(sensor_id, sensor_type, gateway_id, start_time=now, days=predict_range_days)
+            logging.info(f"forecast 개수: {len(forecast)}")
 
             if forecast:
                 logging.info(f"📤 예측 결과 전송 중 (총 {len(forecast)}건)...")
+                logging.info(json.dumps(forecast, indent=2, ensure_ascii=False))  # 한글 시간 포맷 유지
                 self.predictor.send_forecast(sensor_id, forecast)
-                logging.info("✅ 예측 전송 완료")
+                logging.info(f"✅ 예측 전송 완료 (총 {len(forecast)}건)...")
             else:
                 logging.warning(f"❌ 예측 실패: sensor-id={sensor_id}")
 

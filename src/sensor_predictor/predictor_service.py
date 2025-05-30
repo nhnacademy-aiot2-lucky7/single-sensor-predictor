@@ -1,5 +1,8 @@
 import logging
+import os
 from datetime import datetime, timedelta
+
+import requests
 from river import linear_model, preprocessing, metrics
 from src.storage.local_storage import LocalStorage
 
@@ -8,6 +11,7 @@ class PredictorService:
         self.models = {}
         self.metric = metrics.MAE()
         self.storage = LocalStorage()
+        self.last_features = {}
 
     def fit_model(self, sensor_id, sensor_type, gateway_id, data, model=None):
         key = (gateway_id, sensor_id, sensor_type)
@@ -18,35 +22,65 @@ class PredictorService:
             y = record["target"]
             model.learn_one(x, y)
         self.models[key] = model
+        if data:
+            self.last_features[key] = data[-1]["features"]
         return model
 
     def predict(self, sensor_id, sensor_type, gateway_id, start_time: datetime, days: int = 30):
+
         key = (gateway_id, sensor_id, sensor_type)
         model = self.models.get(key)
-        if not model:
-            logging.warning(f"모델 없음: sensor-id={sensor_id}")
+        if model is None:
+            logging.warning(f"❌ 예측 모델이 없습니다: sensor-id={sensor_id}")
             return None
 
-        forecast = []
+        last_feature = self.last_features.get(key)
+        if last_feature is None:
+            logging.warning(f"❌ 예측에 사용할 feature가 없습니다: sensor-id={sensor_id}")
+            return None
+
+        predicted_data = []
         current_time = start_time
-        end_time = start_time + timedelta(days=days)
-        while current_time < end_time:
-            features = {
-                "hour": current_time.hour,
-                "day": current_time.day,
-                "weekday": current_time.weekday()
-            }
-            y_pred = model.predict_one(features)
-            forecast.append({
-                "timestamp": current_time.isoformat(),
-                "prediction": y_pred
+        current_feature = dict(last_feature)  # 복사해서 예측 반복에 사용
+
+        for i in range(days * 24):  # 1시간 단위 예측
+            predicted_value = model.predict_one(current_feature)
+
+            # 다음 입력값에 predicted_value를 target으로 사용
+            current_feature["target"] = predicted_value
+
+            predicted_time = int((current_time + timedelta(hours=i)).timestamp() * 1000)
+            predicted_data.append({
+                "predictedValue": predicted_value,
+                "predictedDate": predicted_time
             })
-            current_time += timedelta(hours=1)
-        return forecast
+
+        result = {
+            "result": {
+                "analysisType": "SINGLE_SENSOR_PREDICT",
+                "sensorInfo": {
+                    "gatewayId": gateway_id,
+                    "sensorId": sensor_id,
+                    "sensorType": sensor_type
+                },
+                "model": "river",
+                "predictedData": predicted_data,
+                "analyzedAt": int(datetime.now().timestamp() * 1000)
+            }
+        }
+
+        return result
 
     def get_trained_model(self, gateway_id, sensor_id, sensor_type):
         return self.models.get((gateway_id, sensor_id, sensor_type))
 
-    def send_forecast(self, sensor_id, forecast_data):
-        # 실제 API 전송 로직으로 대체 필요
-        logging.info(f"📡 [전송됨] sensor={sensor_id}, 예측 수={len(forecast_data)}")
+    def send_forecast(self, sensor_id, forecast_result):
+        url = os.getenv("API_URL")
+        headers = {"Content-Type": "application/json"}
+
+        try:
+            response = requests.post(url, json=forecast_result, headers=headers)
+            response.raise_for_status()
+            logging.info(f"✅ Forecast sent successfully for sensor '{sensor_id}'")
+        except requests.RequestException as e:
+            logging.error(f"❌ Forecast 전송 실패 for sensor '{sensor_id}': {e}")
