@@ -1,38 +1,20 @@
-name: Deploy Single Sensor Predictor
+name: CI - Build and Push Docker Image to GHCR
 
 on:
   push:
-    branches: [ "main" ]
-    paths:
-      - 'single-sensor-predictor/**'
-      - '.github/workflows/deploy-single-sensor-predictor.yml'
+    branches: [ main ]
+
+permissions:
+  contents: read
+  packages: write  # GHCR 푸시용 권한
+
+env:
+  GITHUB_ACTOR: ${{ github.actor }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Upload single-sensor-predictor to server
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SSH_IP }}
-          username: ${{ secrets.SSH_ID }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          source: "single-sensor-predictor/*"
-          target: "~/ai/single-sensor-predictor"
-          rm: false
-
-      - name: Run deploy script on server
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_IP }}
-          username: ${{ secrets.SSH_ID }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script_stop: true
-          script: |
-            bash ~/startup/singleSensorPredictorStartup.sh
+  build:
+    uses: nhnacademy-aiot2-lucky7/common-infra/.github/workflows/reusable-docker-publish.yml@main
+    with:
+      image-name: single-sensor-predictor-service
+      use-github-token: false  # 필요하면 true, 아니면 생략 or false
