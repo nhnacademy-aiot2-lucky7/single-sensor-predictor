@@ -20,6 +20,9 @@ RUN pip install --no-cache-dir --upgrade pip \
 # 5. 나머지 소스코드 복사
 COPY . .
 
+# 5-1. 로그 디렉토리 생성 및 권한 설정 추가
+RUN mkdir -p /logs && chmod 777 /logs
+
 # 6. 실행 명령어 (main.py를 실행)
 ENV PYTHONPATH=/app
 CMD ["python", "main.py"]
