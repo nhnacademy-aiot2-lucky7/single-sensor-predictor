@@ -112,7 +112,7 @@ class InfluxService:
                             "target": y
                         })
                     except Exception as e:
-                        logger.warning(f"⚠️ 레코드 파싱 실패: {record.values} - {e}")
+                        logger.warning(f"⚠ 레코드 파싱 실패: {record.values} - {e}")
             return data
         except Exception as e:
             logger.error(f"[InfluxService] 센서 데이터 로딩 실패 (sensor-id={sensor_id}): {e}", exc_info=True)

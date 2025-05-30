@@ -16,7 +16,7 @@ class Scheduler:
         self.storage = storage
 
     def run(self, predict_range_days: int = 30):
-        logging.info("[1/4] ✅ 완료된 센서 리스트 조회 중...")
+        logging.info("[1/3] 완료된 센서 리스트 조회 중...")
         sensors = load_sensor_list()
         if not sensors:
             logging.warning("조회된 센서가 없습니다.")
@@ -33,11 +33,11 @@ class Scheduler:
             model, last_trained_time = self.storage.load_model_with_metadata(sensor_id, sensor_type)
 
             if last_trained_time:
-                logging.info(f"[중첩학습] sensor-id={sensor_id}, 마지막 학습시각={last_trained_time}")
+                logging.info(f"[2/3] [중첩학습] sensor-id={sensor_id}, 마지막 학습시각={last_trained_time}")
                 # last_trained_time(datetime)를 Influx 쿼리에 맞는 문자열로 변환 (예: ISO8601)
                 train_start = last_trained_time.isoformat() + "Z"
             else:
-                logging.info(f"[최초학습] sensor-id={sensor_id}, 전체 데이터 학습")
+                logging.info(f"[2/3] [최초학습] sensor-id={sensor_id}, 전체 데이터 학습")
                 train_start = "-90d"  # 기본 3개월치 전체 데이터 학습
 
             raw_data = self.influx.load_sensor_data(sensor_id, gateway_id, sensor_type, duration=train_start)
@@ -50,12 +50,12 @@ class Scheduler:
             now = datetime.now()
             self.storage.save_model(trained_model, sensor_id, sensor_type, now)
 
-            logging.info(f"🔮 [예측 시작] sensor-id={sensor_id}, 기간={predict_range_days}일")
+            logging.info(f"[3/3] [예측 시작] sensor-id={sensor_id}, 기간={predict_range_days}일")
             forecast = self.predictor.predict(sensor_id, sensor_type, gateway_id, start_time=now, days=predict_range_days)
             logging.info(f"forecast 개수: {len(forecast)}")
 
             if forecast:
-                logging.info(f"📤 예측 결과 전송 중 (총 {len(forecast)}건)...")
+                logging.info(f"예측 결과 전송 중 (총 {len(forecast)}건)...")
                 logging.info(json.dumps(forecast, indent=2, ensure_ascii=False))  # 한글 시간 포맷 유지
                 self.predictor.send_forecast(sensor_id, forecast)
                 logging.info(f"✅ 예측 전송 완료 (총 {len(forecast)}건)...")

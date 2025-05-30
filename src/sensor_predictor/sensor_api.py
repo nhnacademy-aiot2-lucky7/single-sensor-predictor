@@ -4,7 +4,7 @@ import requests
 import logging
 
 BASE_URL = os.getenv("SENSOR_URL")
-VALID_STATES = "PENDING"
+VALID_STATES = os.getenv("VALID_STATES")
 
 logger = logging.getLogger(__name__)
 

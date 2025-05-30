@@ -9,7 +9,6 @@ venv/
 
 # 환경 파일
 .env
-.env.*
 config.yaml
 secrets.json
 
