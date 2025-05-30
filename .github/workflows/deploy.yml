@@ -1,0 +1,38 @@
+name: Deploy Single Sensor Predictor
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'single-sensor-predictor/**'
+      - '.github/workflows/deploy-single-sensor-predictor.yml'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Upload single-sensor-predictor to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_IP }}
+          username: ${{ secrets.SSH_ID }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          source: "single-sensor-predictor/*"
+          target: "~/ai/single-sensor-predictor"
+          rm: false
+
+      - name: Run deploy script on server
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_IP }}
+          username: ${{ secrets.SSH_ID }}
+          key: ${{ secrets.SSH_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script_stop: true
+          script: |
+            bash ~/startup/singleSensorPredictorStartup.sh
