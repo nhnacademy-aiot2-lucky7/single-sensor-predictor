@@ -1,0 +1,26 @@
+# Python 관련
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# 가상환경
+.venv/
+env/
+venv/
+
+# Git 및 기타
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+
+# OS 파일
+.DS_Store
+Thumbs.db
+
+# Jupyter
+.ipynb_checkpoints/
