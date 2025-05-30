@@ -1,5 +1,6 @@
 import logging
 import os
+import pytz
 from datetime import datetime, timedelta
 
 import requests
@@ -42,6 +43,12 @@ class PredictorService:
             return None
 
         predicted_data = []
+        KST = pytz.timezone('Asia/Seoul')
+
+        # start_time이 naive datetime이면 KST 적용
+        if start_time.tzinfo is None:
+            start_time = KST.localize(start_time)
+
         current_time = start_time
         current_feature = dict(last_feature)  # 복사해서 예측 반복에 사용
 
