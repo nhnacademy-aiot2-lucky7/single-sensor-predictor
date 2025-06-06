@@ -1,6 +1,7 @@
 import logging
 import os
 import pytz
+import json
 from datetime import datetime, timedelta
 
 import requests
@@ -88,6 +89,8 @@ class PredictorService:
         headers = {"Content-Type": "application/json"}
 
         try:
+            logging.info("→ Sending payload to AnalysisResult API:\n%s", json.dumps(forecast_result, indent=2, ensure_ascii=False))
+
             response = requests.post(url, json=forecast_result, headers=headers)
             response.raise_for_status()
             logging.info(f"✅ Forecast sent successfully for sensor '{sensor_id}'")
