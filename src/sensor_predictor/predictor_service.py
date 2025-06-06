@@ -30,8 +30,58 @@ class PredictorService:
             self.last_features[key] = data[-1]["features"]
         return model
 
-    def predict(self, sensor_id, sensor_type, gateway_id, start_time: datetime, days: int = 30):
+    # def predict(self, sensor_id, sensor_type, gateway_id, start_time: datetime, days: int = 30):
+    #
+    #     key = (gateway_id, sensor_id, sensor_type)
+    #     model = self.models.get(key)
+    #     if model is None:
+    #         logging.warning(f"❌ 예측 모델이 없습니다: sensor-id={sensor_id}")
+    #         return None
+    #
+    #     last_feature = self.last_features.get(key)
+    #     if last_feature is None:
+    #         logging.warning(f"❌ 예측에 사용할 feature가 없습니다: sensor-id={sensor_id}")
+    #         return None
+    #
+    #     predicted_data = []
+    #     KST = pytz.timezone('Asia/Seoul')
+    #
+    #     # start_time이 naive datetime이면 KST 적용
+    #     if start_time.tzinfo is None:
+    #         start_time = KST.localize(start_time)
+    #
+    #     current_time = start_time
+    #     current_feature = dict(last_feature)  # 복사해서 예측 반복에 사용
+    #
+    #     for i in range(days * 24):  # 1시간 단위 예측
+    #         predicted_value = model.predict_one(current_feature)
+    #
+    #         # 다음 입력값에 predicted_value를 target으로 사용
+    #         current_feature["target"] = predicted_value
+    #
+    #         predicted_time = int((current_time + timedelta(hours=i)).timestamp() * 1000)
+    #         predicted_data.append({
+    #             "predictedValue": predicted_value,
+    #             "predictedDate": predicted_time
+    #         })
+    #
+    #     result = {
+    #         "result": {
+    #             "analysisType": "SINGLE_SENSOR_PREDICT",
+    #             "sensorInfo": {
+    #                 "gatewayId": gateway_id,
+    #                 "sensorId": sensor_id,
+    #                 "sensorType": sensor_type
+    #             },
+    #             "model": "river",
+    #             "predictedData": predicted_data,
+    #             "analyzedAt": int(datetime.now().timestamp() * 1000)
+    #         }
+    #     }
+    #
+    #     return result
 
+    def predict(self, sensor_id, sensor_type, gateway_id, start_time: datetime, days: int = 30):
         key = (gateway_id, sensor_id, sensor_type)
         model = self.models.get(key)
         if model is None:
@@ -50,32 +100,36 @@ class PredictorService:
         if start_time.tzinfo is None:
             start_time = KST.localize(start_time)
 
-        current_time = start_time
         current_feature = dict(last_feature)  # 복사해서 예측 반복에 사용
 
         for i in range(days * 24):  # 1시간 단위 예측
             predicted_value = model.predict_one(current_feature)
+            current_feature["target"] = predicted_value  # 다음 예측의 입력으로 사용
 
-            # 다음 입력값에 predicted_value를 target으로 사용
-            current_feature["target"] = predicted_value
-
-            predicted_time = int((current_time + timedelta(hours=i)).timestamp() * 1000)
+            predicted_time = int((start_time + timedelta(hours=i)).timestamp() * 1000)  # 밀리초
             predicted_data.append({
-                "predictedValue": predicted_value,
-                "predictedDate": predicted_time
-            })
-
-        result = {
-            "result": {
-                "analysisType": "SINGLE_SENSOR_PREDICT",
                 "sensorInfo": {
                     "gatewayId": gateway_id,
                     "sensorId": sensor_id,
                     "sensorType": sensor_type
                 },
+                "singleRiskModel": predicted_value,
+                "correlationRiskModel": predicted_value  # 아직 상관관계 모델이 없으므로 동일하게 설정
+            })
+
+        result = {
+            "result": {
+                "analysisType": "CORRELATION-RISK-PREDICT",
+                "sensorInfo": [
+                    {
+                        "gatewayId": gateway_id,
+                        "sensorId": sensor_id,
+                        "sensorType": sensor_type
+                    }
+                ],
                 "model": "river",
                 "predictedData": predicted_data,
-                "analyzedAt": int(datetime.now().timestamp() * 1000)
+                "analyzedAt": int(datetime.now().timestamp() * 1000)  # 밀리초
             }
         }
 
@@ -89,7 +143,7 @@ class PredictorService:
         headers = {"Content-Type": "application/json"}
 
         try:
-            logging.info("→ Sending payload to AnalysisResult API:\n%s", json.dumps(forecast_result, indent=2, ensure_ascii=False))
+            # logging.info("→ Sending payload to AnalysisResult API:\n%s", json.dumps(forecast_result, indent=2, ensure_ascii=False))
 
             response = requests.post(url, json=forecast_result, headers=headers)
             response.raise_for_status()
