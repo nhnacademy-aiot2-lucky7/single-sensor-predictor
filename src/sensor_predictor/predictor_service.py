@@ -81,14 +81,12 @@ class PredictorService:
 
         result = {
             "result": {
-                "analysisType": "SINGLE_SENSOR_PREDICT",
-                "sensorInfo": [
-                    {
-                        "gatewayId": gateway_id,
-                        "sensorId": sensor_id,
-                        "sensorType": sensor_type
-                    }
-                ],
+                "type": "SINGLE_SENSOR_PREDICT",      # ← 여기만 "type"으로 바꿔야 합니다.
+                "sensorInfo": {
+                    "gatewayId": gateway_id,
+                    "sensorId": sensor_id,
+                    "sensorType": sensor_type
+                },
                 "model": "river",
                 "predictedData": predicted_data,
                 "analyzedAt": int(datetime.now().timestamp() * 1000)
