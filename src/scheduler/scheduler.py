@@ -26,8 +26,8 @@ class Scheduler:
         sensor_meta = self.influx.get_sensor_metadata("-90d", sensors)  # 최근 3개월 메타데이터로 제한
 
         for meta in sensor_meta:
-            sensor_id = meta["sensor-id"]
-            gateway_id = meta["gateway-id"]
+            sensor_id = meta["sensor_id"]
+            gateway_id = meta["gateway_id"]
             sensor_type = meta["sensor_type"]
 
             model, last_trained_time = self.storage.load_model_with_metadata(sensor_id, sensor_type)

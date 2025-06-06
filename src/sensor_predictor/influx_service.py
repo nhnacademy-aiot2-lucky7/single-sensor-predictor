@@ -1,4 +1,5 @@
 import logging
+import json
 from influxdb_client import InfluxDBClient
 
 logger = logging.getLogger(__name__)
@@ -79,6 +80,7 @@ class InfluxService:
                         })
 
             logger.info(f"sensor_meta count: {len(sensor_meta)}")
+            logger.info("sensor_meta 전체 내용:\n%s", json.dumps(sensor_meta, indent=2, ensure_ascii=False))
             return sensor_meta
         except Exception as e:
             logger.error(f"[InfluxService] 센서 메타데이터 조회 실패: {e}", exc_info=True)
