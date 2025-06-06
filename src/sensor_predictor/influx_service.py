@@ -5,10 +5,10 @@ logger = logging.getLogger(__name__)
 
 class InfluxService:
     # 상수 정의
-    FIELD_GATEWAY_ID = "gateway-id"
-    FIELD_SENSOR_ID = "sensor-id"
+    FIELD_GATEWAY_ID = "gateway_id"
+    FIELD_SENSOR_ID = "sensor_id"
     FIELD_SENSOR_TYPE = "_field"
-    MEASUREMENT = "sensor-data"
+    MEASUREMENT = "sensor_data"
 
     def __init__(self, url, token, org, bucket):
         try:
