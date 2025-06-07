@@ -18,23 +18,31 @@ class PredictorService:
         self.storage = LocalStorage()
         self.last_features = {}
 
-    def augment_data(self, data, noise_factor=0.01, shift_hours=1):
+    def augment_data(self, data, noise_factor=0.01, shift_hours=1, seed=42):
         """
         데이터 증강 기법: 시간 시프트 및 소량의 노이즈 추가
         """
         augmented_data = []
+        KST = pytz.timezone('Asia/Seoul')
+
+        rng = np.random.default_rng(seed)
 
         for record in data:
             x = record["features"]
             y = record["target"]
 
             # 1. 시간 시프트: 데이터를 1시간씩 시프트하여 새로운 레코드를 생성
+            timestamp = record["time"] / 1000
+            current_time = datetime.fromtimestamp(timestamp, tz=KST)
+
+            shifted_time = current_time + timedelta(hours=shift_hours)
+
             augmented_record = dict(record)
-            augmented_record["time"] = int((datetime.utcfromtimestamp(record["time"] / 1000) + timedelta(hours=shift_hours)).timestamp() * 1000)
+            augmented_record["time"] = int(shifted_time.timestamp() * 1000)  # Convert back to milliseconds
             augmented_data.append(augmented_record)
 
             # 2. 소량의 노이즈 추가: 각 feature에 작은 노이즈를 추가
-            noise = np.random.normal(0, noise_factor, size=np.array(x).shape)
+            noise = rng.normal(0, noise_factor, size=np.array(x).shape)
             x_augmented = x + noise
             augmented_data.append({
                 "features": x_augmented,
@@ -50,8 +58,8 @@ class PredictorService:
         """
         key = (gateway_id, sensor_id, sensor_type)
         if model is None:
-            # L2 정규화가 적용된 Ridge 회귀 모델 사용
-            model = preprocessing.StandardScaler() | linear_model.Ridge(alpha=1.0)
+            # BayesianLinearRegression을 사용하여 L2 정규화
+            model = preprocessing.StandardScaler() | linear_model.BayesianLinearRegression()
 
         # 기존 모델 성능 평가
         previous_model = self.models.get(key)
@@ -70,7 +78,7 @@ class PredictorService:
 
         for alpha in alphas:
             # 모델을 alpha 값에 맞게 초기화
-            temp_model = preprocessing.StandardScaler() | linear_model.Ridge(alpha=alpha)
+            temp_model = preprocessing.StandardScaler() | linear_model.BayesianLinearRegression(alpha=alpha)
 
 
             # 모델 학습
@@ -88,7 +96,7 @@ class PredictorService:
         logging.info(f"최적의 alpha 값: {best_alpha}")
 
         # 최적 alpha 값으로 모델 학습
-        model = preprocessing.StandardScaler() | linear_model.Ridge(alpha=best_alpha)
+        model = preprocessing.StandardScaler() | linear_model.BayesianLinearRegression(alpha=best_alpha)
 
         # 최적 alpha 값으로 다시 학습
         for record in augmented_data:
