@@ -1,7 +1,6 @@
 import logging
 import os
 import pytz
-import json
 from datetime import datetime, timedelta
 
 import requests
@@ -21,17 +20,48 @@ class PredictorService:
         key = (gateway_id, sensor_id, sensor_type)
         if model is None:
             model = preprocessing.StandardScaler() | linear_model.LinearRegression()
+
+        # 기존 모델 성능 평가
+        previous_model = self.models.get(key)
+        prev_metric = None
+        if previous_model:
+            prev_metric = self.evaluate_model(previous_model, data)
+            logging.info(f"기존 모델 성능 (MAE): {prev_metric['MAE']}")
+
+        # 모델 학습
         for record in data:
             x = record["features"]
             y = record["target"]
             model.learn_one(x, y)
-        self.models[key] = model
-        if data:
-            self.last_features[key] = data[-1]["features"]
+
+        # 새로운 모델 성능 평가
+        new_metric = self.evaluate_model(model, data)
+        logging.info(f"새로운 모델 성능 (MAE): {new_metric['MAE']}")
+
+        # 성능이 개선된 경우에만 모델을 저장
+        if not previous_model or new_metric["MAE"] < prev_metric["MAE"] * 0.9:
+            self.models[key] = model
+            if data:
+                self.last_features[key] = data[-1]["features"]
+            logging.info(f"모델이 업데이트되었습니다: sensor-id={sensor_id}")
+        else:
+            logging.info(f"모델 성능이 개선되지 않았습니다. 업데이트하지 않음: sensor-id={sensor_id}")
+
         return model
 
-    def predict(self, sensor_id, sensor_type, gateway_id, start_time: datetime, days: int = 30):
+    def evaluate_model(self, model, data):
+        """모델 성능 평가 (MAE 기준)"""
+        mae_metric = metrics.MAE()
+        rmse_metric = metrics.RMSE()
+        for record in data:
+            x = record["features"]
+            y = record["target"]
+            y_pred = model.predict_one(x)
+            mae_metric.update(y, y_pred)
+            rmse_metric.update(y, y_pred)
+        return {"MAE": mae_metric.get(), "RMSE": rmse_metric.get()}
 
+    def predict(self, sensor_id, sensor_type, gateway_id, start_time: datetime, days: int = 30):
         key = (gateway_id, sensor_id, sensor_type)
         model = self.models.get(key)
         if model is None:
@@ -54,7 +84,11 @@ class PredictorService:
         current_feature = dict(last_feature)  # 복사해서 예측 반복에 사용
 
         for i in range(days * 24):  # 1시간 단위 예측
-            predicted_value = model.predict_one(current_feature)
+            try:
+                predicted_value = model.predict_one(current_feature)
+            except Exception as e:
+                logging.error(f"예측 오류 발생: {e}")
+                predicted_value = None
 
             # 다음 입력값에 predicted_value를 target으로 사용
             current_feature["target"] = predicted_value
@@ -65,23 +99,9 @@ class PredictorService:
                 "predictedDate": predicted_time
             })
 
-        # result = {
-        #     "result": {
-        #         "analysisType": "SINGLE_SENSOR_PREDICT",
-        #         "sensorInfo": {
-        #             "gatewayId": gateway_id,
-        #             "sensorId": sensor_id,
-        #             "sensorType": sensor_type
-        #         },
-        #         "model": "river",
-        #         "predictedData": predicted_data,
-        #         "analyzedAt": int(datetime.now().timestamp() * 1000)
-        #     }
-        # }
-
         result = {
             "result": {
-                "type": "SINGLE_SENSOR_PREDICT",      # ← 여기만 "type"으로 바꿔야 합니다.
+                "type": "SINGLE_SENSOR_PREDICT",
                 "sensorInfo": {
                     "gatewayId": gateway_id,
                     "sensorId": sensor_id,
@@ -95,16 +115,11 @@ class PredictorService:
 
         return result
 
-    def get_trained_model(self, gateway_id, sensor_id, sensor_type):
-        return self.models.get((gateway_id, sensor_id, sensor_type))
-
     def send_forecast(self, sensor_id, forecast_result):
         url = os.getenv("API_URL")
         headers = {"Content-Type": "application/json"}
 
         try:
-            # logging.info("→ Sending payload to AnalysisResult API:\n%s", json.dumps(forecast_result, indent=2, ensure_ascii=False))
-
             response = requests.post(url, json=forecast_result, headers=headers)
             response.raise_for_status()
             logging.info(f"✅ Forecast sent successfully for sensor '{sensor_id}'")

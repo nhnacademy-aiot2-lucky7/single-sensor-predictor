@@ -40,10 +40,13 @@ class Scheduler:
                 logging.info(f"[2/3] [최초학습] sensor-id={sensor_id}, 전체 데이터 학습")
                 train_start = "-90d"  # 기본 3개월치 전체 데이터 학습
 
-            raw_data = self.influx.load_sensor_data(sensor_id, gateway_id, sensor_type, duration=train_start)
-
-            if not raw_data:
-                logging.warning(f"⚠️ 학습할 데이터 없음: sensor-id={sensor_id}")
+            try:
+                raw_data = self.influx.load_sensor_data(sensor_id, gateway_id, sensor_type, duration=train_start)
+                if not raw_data:
+                    logging.warning(f"⚠️ 학습할 데이터 없음: sensor-id={sensor_id}")
+                    continue
+            except Exception as e:
+                logging.error(f"데이터 로드 실패: {sensor_id} - {e}")
                 continue
 
             trained_model = self.predictor.fit_model(sensor_id, sensor_type, gateway_id, raw_data, model)
