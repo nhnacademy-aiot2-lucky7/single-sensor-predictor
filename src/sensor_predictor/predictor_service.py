@@ -29,8 +29,11 @@ class PredictorService:
 
         for record in data:
             if "time" not in record:
-                logging.warning(f"Warning: Record missing 'time' key. Skipping record: {record}")
-                continue
+                if "features" in record and "ds" in record["features"]:
+                    record["time"] = record["features"]["ds"] * 1000
+                else:
+                    logging.warning(f"Warning: Record missing 'time' and 'ds' key. Skipping record: {record}")
+                    continue
 
             x = record["features"]
             y = record["target"]
