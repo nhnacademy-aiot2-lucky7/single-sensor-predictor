@@ -1,7 +1,7 @@
 import logging
 import os
 import pytz
-import json
+import random
 from datetime import datetime, timedelta
 
 import requests
@@ -30,7 +30,7 @@ class PredictorService:
             self.last_features[key] = data[-1]["features"]
         return model
 
-    def predict(self, sensor_id, sensor_type, gateway_id, start_time: datetime, days: int = 30):
+    def predict(self, sensor_id, sensor_type, gateway_id, start_time: datetime, min_value, max_value, days: int = 30):
 
         key = (gateway_id, sensor_id, sensor_type)
         model = self.models.get(key)
@@ -56,8 +56,10 @@ class PredictorService:
         for i in range(days * 24):  # 1시간 단위 예측
             predicted_value = model.predict_one(current_feature)
 
+            predicted_value_with_noise = predicted_value + random.randint(min_value, max_value)
+
             # 다음 입력값에 predicted_value를 target으로 사용
-            current_feature["target"] = predicted_value
+            current_feature["target"] = predicted_value_with_noise
 
             predicted_time = int((current_time + timedelta(hours=i)).timestamp() * 1000)
             predicted_data.append({

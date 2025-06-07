@@ -42,6 +42,11 @@ class Scheduler:
 
             raw_data = self.influx.load_sensor_data(sensor_id, gateway_id, sensor_type, duration=train_start)
 
+            # 실제값의 최대, 최소 구하기
+            actual_values = [record["target"] for record in raw_data if record["target"] is not None]
+            min_value = min(actual_values)
+            max_value = max(actual_values)
+
             if not raw_data:
                 logging.warning(f"⚠️ 학습할 데이터 없음: sensor-id={sensor_id}")
                 continue
@@ -51,7 +56,7 @@ class Scheduler:
             self.storage.save_model(trained_model, sensor_id, sensor_type, now)
 
             logging.info(f"[3/3] [예측 시작] sensor-id={sensor_id}, 기간={predict_range_days}일")
-            forecast = self.predictor.predict(sensor_id, sensor_type, gateway_id, start_time=now, days=predict_range_days)
+            forecast = self.predictor.predict(sensor_id, sensor_type, gateway_id, min_value, max_value, days=predict_range_days)
             logging.info(f"forecast 개수: {len(forecast)}")
 
             if forecast:
