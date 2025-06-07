@@ -91,7 +91,8 @@ class PredictorService:
                 predicted_value = None
 
             # 다음 입력값에 predicted_value를 target으로 사용
-            current_feature["target"] = predicted_value
+            current_feature["predicted_value"] = predicted_value
+            current_feature["time"] = int((current_time + timedelta(hours=i)).timestamp())  # 시간 정보 반영
 
             predicted_time = int((current_time + timedelta(hours=i)).timestamp() * 1000)
             predicted_data.append({
