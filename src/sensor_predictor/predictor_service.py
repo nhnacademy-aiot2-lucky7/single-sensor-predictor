@@ -28,6 +28,10 @@ class PredictorService:
         rng = np.random.default_rng(seed)
 
         for record in data:
+            if "time" not in record:
+                logging.warning(f"Warning: Record missing 'time' key. Skipping record: {record}")
+                continue
+
             x = record["features"]
             y = record["target"]
 
@@ -38,7 +42,7 @@ class PredictorService:
             shifted_time = current_time + timedelta(hours=shift_hours)
 
             augmented_record = dict(record)
-            augmented_record["time"] = int(shifted_time.timestamp() * 1000)  # Convert back to milliseconds
+            augmented_record["time"] = int(shifted_time.timestamp() * 1000)
             augmented_data.append(augmented_record)
 
             # 2. 소량의 노이즈 추가: 각 feature에 작은 노이즈를 추가
