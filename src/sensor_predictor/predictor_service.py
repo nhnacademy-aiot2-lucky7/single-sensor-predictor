@@ -33,7 +33,7 @@ class PredictorService:
             self.last_features[key] = data[-1]["features"]
         return model
 
-    def predict(self, sensor_id, sensor_type, gateway_id, start_time: datetime, min_value, max_value, days: int = 30):
+    def predict(self, sensor_id, sensor_type, gateway_id, min_value, max_value, start_time: datetime, days: int = 30):
 
         key = (gateway_id, sensor_id, sensor_type)
         model = self.models.get(key)
