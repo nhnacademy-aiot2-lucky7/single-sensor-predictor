@@ -60,11 +60,9 @@ class PredictorService:
             predicted_value = model.predict_one(current_feature)
 
             noise = random.uniform(min_value, max_value)
+            diff = predicted_value - noise
 
-            if noise > predicted_value:
-                predicted_value_with_noise = noise - predicted_value
-            else:
-                predicted_value_with_noise = predicted_value - noise
+            predicted_value_with_noise = predicted_value + diff
 
             # 다음 입력값에 predicted_value를 target으로 사용
             current_feature["target"] = predicted_value_with_noise
