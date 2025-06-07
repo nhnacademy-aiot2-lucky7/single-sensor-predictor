@@ -59,20 +59,21 @@ class PredictorService:
         for i in range(days * 24):  # 1시간 단위 예측
             predicted_value = model.predict_one(current_feature)
 
-            predicted_value_with_noise = predicted_value + random.uniform(min_value, max_value)
+            noise = random.uniform(min_value, max_value)
+            predicted_value_with_noise = predicted_value + noise
 
             # 다음 입력값에 predicted_value를 target으로 사용
             current_feature["target"] = predicted_value_with_noise
 
             predicted_time = int((current_time + timedelta(hours=i)).timestamp() * 1000)
             predicted_data.append({
-                "predictedValue": predicted_value,
+                "predictedValue": predicted_value_with_noise,
                 "predictedDate": predicted_time
             })
 
         result = {
             "result": {
-                "type": "SINGLE_SENSOR_PREDICT",      # ← 여기만 "type"으로 바꿔야 합니다.
+                "type": "SINGLE_SENSOR_PREDICT",
                 "sensorInfo": {
                     "gatewayId": gateway_id,
                     "sensorId": sensor_id,
