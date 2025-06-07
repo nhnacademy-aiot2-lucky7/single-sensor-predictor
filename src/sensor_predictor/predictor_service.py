@@ -49,7 +49,7 @@ class PredictorService:
             augmented_data.append(augmented_record)
 
             # 2. 소량의 노이즈 추가: 각 feature에 작은 노이즈를 추가
-            noise = rng.normal(0, noise_factor, size=np.array(x).shape)
+            noise = rng.normal(0, noise_factor, size=len(x))
             x_augmented = {key: value + noise[i] for i, (key, value) in enumerate(x.items())}  # dict의 각 feature에 noise를 더함
             augmented_data.append({
                 "features": x_augmented,
