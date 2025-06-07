@@ -1,5 +1,7 @@
 import logging
 import os
+
+import numpy as np
 import pytz
 from datetime import datetime, timedelta
 
@@ -16,10 +18,40 @@ class PredictorService:
         self.storage = LocalStorage()
         self.last_features = {}
 
+    def augment_data(self, data, noise_factor=0.01, shift_hours=1):
+        """
+        데이터 증강 기법: 시간 시프트 및 소량의 노이즈 추가
+        """
+        augmented_data = []
+
+        for record in data:
+            x = record["features"]
+            y = record["target"]
+
+            # 1. 시간 시프트: 데이터를 1시간씩 시프트하여 새로운 레코드를 생성
+            augmented_record = dict(record)
+            augmented_record["time"] = int((datetime.utcfromtimestamp(record["time"] / 1000) + timedelta(hours=shift_hours)).timestamp() * 1000)
+            augmented_data.append(augmented_record)
+
+            # 2. 소량의 노이즈 추가: 각 feature에 작은 노이즈를 추가
+            noise = np.random.normal(0, noise_factor, size=np.array(x).shape)
+            x_augmented = x + noise
+            augmented_data.append({
+                "features": x_augmented,
+                "target": y
+            })
+
+        return augmented_data
+
+
     def fit_model(self, sensor_id, sensor_type, gateway_id, data, model=None):
+        """
+        모델 학습 및 성능 평가
+        """
         key = (gateway_id, sensor_id, sensor_type)
         if model is None:
-            model = preprocessing.StandardScaler() | linear_model.LinearRegression()
+            # L2 정규화가 적용된 Ridge 회귀 모델 사용
+            model = preprocessing.StandardScaler() | linear_model.Ridge(alpha=1.0)
 
         # 기존 모델 성능 평가
         previous_model = self.models.get(key)
@@ -28,14 +60,44 @@ class PredictorService:
             prev_metric = self.evaluate_model(previous_model, data)
             logging.info(f"기존 모델 성능 (MAE): {prev_metric['MAE']}")
 
-        # 모델 학습
-        for record in data:
+        # 데이터 증강
+        augmented_data = self.augment_data(data)  # 데이터 증강
+
+        # alpha 값 튜닝
+        alphas = [0.1, 0.5, 1.0, 5.0]
+        best_alpha = None
+        best_mae = float('inf')
+
+        for alpha in alphas:
+            # 모델을 alpha 값에 맞게 초기화
+            temp_model = preprocessing.StandardScaler() | linear_model.Ridge(alpha=alpha)
+
+
+            # 모델 학습
+            for record in augmented_data:
+                x = record["features"]
+                y = record["target"]
+                model.learn_one(x, y)
+
+            # 성능 평가
+            metric = self.evaluate_model(temp_model, augmented_data)
+            if metric['MAE'] < best_mae:
+                best_mae = metric['MAE']
+                best_alpha = alpha
+
+        logging.info(f"최적의 alpha 값: {best_alpha}")
+
+        # 최적 alpha 값으로 모델 학습
+        model = preprocessing.StandardScaler() | linear_model.Ridge(alpha=best_alpha)
+
+        # 최적 alpha 값으로 다시 학습
+        for record in augmented_data:
             x = record["features"]
             y = record["target"]
             model.learn_one(x, y)
 
         # 새로운 모델 성능 평가
-        new_metric = self.evaluate_model(model, data)
+        new_metric = self.evaluate_model(model, augmented_data)
         logging.info(f"새로운 모델 성능 (MAE): {new_metric['MAE']}")
 
         # 성능이 개선된 경우에만 모델을 저장
