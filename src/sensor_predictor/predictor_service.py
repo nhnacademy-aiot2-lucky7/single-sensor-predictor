@@ -50,7 +50,7 @@ class PredictorService:
 
             # 2. 소량의 노이즈 추가: 각 feature에 작은 노이즈를 추가
             noise = rng.normal(0, noise_factor, size=np.array(x).shape)
-            x_augmented = x + noise
+            x_augmented = {key: value + noise[i] for i, (key, value) in enumerate(x.items())}  # dict의 각 feature에 noise를 더함
             augmented_data.append({
                 "features": x_augmented,
                 "target": y
@@ -86,7 +86,6 @@ class PredictorService:
         for alpha in alphas:
             # 모델을 alpha 값에 맞게 초기화
             temp_model = preprocessing.StandardScaler() | linear_model.BayesianLinearRegression(alpha=alpha)
-
 
             # 모델 학습
             for record in augmented_data:
