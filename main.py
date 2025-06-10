@@ -1,6 +1,8 @@
 import logging
 import os
 import time
+from datetime import datetime
+
 import schedule
 
 from dotenv import load_dotenv
@@ -23,21 +25,32 @@ INFLUXDB_BUCKET = os.getenv("INFLUXDB_BUCKET")
 logger = logging.getLogger(__name__)
 logger.info("🔥 시스템 시작")
 
-def job():
+def job(start_dates=None):
     logging.info("🕑 새벽 2시 스케줄러 실행 중...")
     influx = InfluxService(INFLUXDB_URL, INFLUXDB_TOKEN, INFLUXDB_ORG, INFLUXDB_BUCKET)
     predictor = PredictorService()
     storage = LocalStorage()
     scheduler = Scheduler(influx, predictor, storage)
-    scheduler.run(predict_range_days=30)
+
+    scheduler.run(predict_range_days=30, start_dates=start_dates)
 
 if __name__ == "__main__":
     # ✅ 최초 1회 실행
     logging.info("🚀 최초 1회 실행 중...")
-    job()
+
+    manual_dates = [
+        datetime(2025, 6, 8),
+        datetime(2025, 6, 9),
+        datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    ]
+    job(start_dates=manual_dates)
+
+    def daily_job():
+        today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        job(start_dates=[today])
 
     # ✅ 매일 새벽 2시에 job() 실행
-    schedule.every().day.at("02:00").do(job)
+    schedule.every().day.at("02:00").do(daily_job)
 
     logging.info("⏳ 스케줄러 대기 중... (매일 새벽 2시 실행)")
     while True:

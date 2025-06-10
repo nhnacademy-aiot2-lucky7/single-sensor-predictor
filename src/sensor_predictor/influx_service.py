@@ -100,6 +100,10 @@ class InfluxService:
             |> sort(columns: ["ds"])
         '''
             tables = self.query_api.query(query)
+            if not tables:
+                logging.warning(f"[InfluxService] 쿼리 결과 없음 - sensor-id={sensor_id}, duration={duration}")
+                return []
+
             data = []
             for table in tables:
                 for record in table.records:
@@ -115,7 +119,18 @@ class InfluxService:
                         })
                     except Exception as e:
                         logger.warning(f"⚠ 레코드 파싱 실패: {record.values} - {e}")
+            if not data:
+                logger.warning(f"[InfluxService] 데이터 없음 - sensor-id={sensor_id}")
+                return []
+
+            actual_values = [d["target"] for d in data if d["target"] is not None]
+            if not actual_values:
+                logger.warning(f"InfluxService] actual_values 없음 - sensor-id={sensor_id}")
+                return []
+
+            logger.info(f"[InfluxService] 로드된 데이터 수: {len(data)}")
             return data
+
         except Exception as e:
             logger.error(f"[InfluxService] 센서 데이터 로딩 실패 (sensor-id={sensor_id}): {e}", exc_info=True)
             return []
